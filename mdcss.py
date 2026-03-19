@@ -9,7 +9,7 @@ from fontTools.ttLib import TTFont
 
 HOME = Path.home()
 DEFAULT_EXTENSIONS_ROOT = HOME / ".vscode" / "extensions"
-DEFAULT_OUTPUT = HOME / ".local" / "state" / "crossnote" / "style.less"
+DEFAULT_OUTPUT = HOME / ".local" / "state" / "crossnote"
 
 cssutils.log.setLevel("CRITICAL")
 
@@ -36,7 +36,7 @@ def resolve_extension_dir(
 
 
 def generate_print_style(
-    preview_css_path,
+    main_css_path,
     codeblock_css_path,
     reveal_css_path=None,
     print_margin: str = "2cm",
@@ -53,7 +53,7 @@ def generate_print_style(
         return p.read_text(encoding="utf-8")
 
     all_css = ""
-    for path in [preview_css_path, codeblock_css_path, reveal_css_path]:
+    for path in [main_css_path, codeblock_css_path, reveal_css_path]:
         content = load_css(path)
         if content:
             all_css += content + "\n"
@@ -209,6 +209,29 @@ def generate_print_style(
     output_lines.append("    text-align: right !important;")
     output_lines.append("    padding-right: 0.8em !important;")
     output_lines.append("    color: #808080 !important;")
+    output_lines.append("  }")
+    output_lines.append("  /* Keep MPE @import PDF (rendered as data SVG img) centered in print */")
+    output_lines.append("  .markdown-preview img[src^=\"data:image/svg+xml\"] {")
+    output_lines.append("    margin-left: auto !important;")
+    output_lines.append("    margin-right: auto !important;")
+    output_lines.append("  }")
+    output_lines.append(
+        "  .markdown-preview div[style*=\"text-align: center\"] img[src^=\"data:image/svg+xml\"] {"
+    )
+    output_lines.append("    display: inline-block !important;")
+    output_lines.append("    margin-left: 0 !important;")
+    output_lines.append("    margin-right: 0 !important;")
+    output_lines.append("  }")
+    output_lines.append(
+        "  .markdown-preview div[style*=\"display: flex\"] > p:has(> img[src^=\"data:image/svg+xml\"]) {"
+    )
+    output_lines.append("    margin: 0 !important;")
+    output_lines.append("  }")
+    output_lines.append(
+        "  .markdown-preview div[style*=\"display: flex\"] img[src^=\"data:image/svg+xml\"] {"
+    )
+    output_lines.append("    display: block !important;")
+    output_lines.append("    margin: 0 !important;")
     output_lines.append("  }")
     output_lines.append("}")
 
@@ -387,11 +410,12 @@ def resolve_font_family(font_path: Path, font_assets_dir: Path) -> Tuple[str, st
 def build_style_blocks(
     extension_dir: Path,
     font_path: Path,
-    preview_css_path: Path,
+    main_css_path: Path,
     codeblock_css_path: Path,
     print_margin: str,
     font_assets_dir: Path,
     code_font_path: Optional[Path] = None,
+    enable_parser: bool = False,
 ) -> List[str]:
     blocks: List[str] = []
 
@@ -431,9 +455,10 @@ def build_style_blocks(
 """
     )
 
-    for i in range(1, 101):
-        blocks.append(
-            f"""
+    if not enable_parser:
+        for i in range(1, 101):
+            blocks.append(
+                f"""
   img[alt*="{i}"] {{
     width: {i}% !important;
     height: auto;
@@ -441,7 +466,7 @@ def build_style_blocks(
     margin: 0 auto;
   }}
 """
-        )
+            )
 
     blocks.append(
         """
@@ -521,7 +546,7 @@ def build_style_blocks(
 
     blocks.append(
         generate_print_style(
-            preview_css_path,
+            main_css_path,
             codeblock_css_path,
             print_margin=print_margin,
         )
@@ -530,13 +555,242 @@ def build_style_blocks(
     return blocks
 
 
-def write_output(output_path: Path, blocks: List[str]) -> None:
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(
+def build_parser_blocks() -> Tuple[List[str], List[str]]:
+    parser_blocks: List[str] = []
+    html_blocks: List[str] = []
+    # PDF center
+    parser_blocks.append(
+r"""
+    const regex = /^@import\s+"(.*\.pdf)"\s*\{(.*?)\}/mg;
+    markdown = markdown.replace(regex, (match, pdf, argument) => {
+      return `
+<div style="display: flex; justify-content: center; flex-wrap: wrap;">
+
+@import "${pdf}"{${argument}}
+
+</div>`
+    });
+"""
+    )
+    # Image alt size
+    html_blocks.append(
+"""
+        function extractWidthFromAlt(alt) {
+            if (!alt) return null;
+
+            // 支持: 25, 25%, 300px, 25r, 30R, 40Lf, 40Rf
+            const token = alt.trim().match(/^(\\d{1,4})(?:\\s*(px|%))?/i);
+            if (!token) return null;
+
+            const value = Number(token[1]);
+            if (!Number.isFinite(value) || value <= 0) return null;
+
+            const unit = (token[2] || '%').toLowerCase();
+            if (unit === 'px') {
+                return `${value}px`;
+            }
+            return `${Math.min(value, 100)}%`;
+        }
+
+        function resolveLayoutMode(alt) {
+            const text = (alt || '').trim();
+            if (text.includes('Lf') || text.includes('Rf')) {
+                return 'float';
+            }
+            if (text.includes('L')) {
+                return 'left';
+            }
+            if (text.includes('R')) {
+                return 'right';
+            }
+            if (text.endsWith('r')) {
+                return 'inline';
+            }
+            return 'center';
+        }
+
+        function mergeStyle(existingStyle, widthValue, alt) {
+            const styleMap = new Map();
+            const styleText = existingStyle || '';
+
+            styleText
+                .split(';')
+                .map((s) => s.trim())
+                .filter(Boolean)
+                .forEach((entry) => {
+                    const idx = entry.indexOf(':');
+                    if (idx <= 0) return;
+                    const key = entry.slice(0, idx).trim().toLowerCase();
+                    const value = entry.slice(idx + 1).trim();
+                    if (!key || !value) return;
+                    styleMap.set(key, value);
+                });
+
+            styleMap.set('width', `${widthValue} !important`);
+            styleMap.set('height', 'auto !important');
+
+            const layoutMode = resolveLayoutMode(alt);
+
+            // Clear conflicting keys before applying our layout intent.
+            styleMap.delete('margin');
+            styleMap.delete('margin-left');
+            styleMap.delete('margin-right');
+            styleMap.delete('vertical-align');
+
+            if (layoutMode === 'inline') {
+                styleMap.set('display', 'inline-block !important');
+                styleMap.set('margin', '0 !important');
+                styleMap.set('vertical-align', 'middle !important');
+            } else if (layoutMode === 'left') {
+                styleMap.set('display', 'block !important');
+                styleMap.set('margin-left', '0 !important');
+                styleMap.set('margin-right', 'auto !important');
+            } else if (layoutMode === 'right') {
+                styleMap.set('display', 'block !important');
+                styleMap.set('margin-left', 'auto !important');
+                styleMap.set('margin-right', '0 !important');
+            } else if (layoutMode === 'center') {
+                styleMap.set('display', 'block !important');
+                styleMap.set('margin', '0 auto !important');
+            } else {
+                // float mode: keep width/height only; let CSS alt rules control float/layout.
+                styleMap.delete('display');
+            }
+
+            return Array.from(styleMap.entries())
+                .map(([k, v]) => `${k}: ${v}`)
+                .join('; ');
+        }
+
+        html = html.replace(/<img\\b[^>]*>/gi, (imgTag) => {
+            const altMatch = imgTag.match(/\\balt=(['\"])(.*?)\\1/i);
+            const alt = altMatch ? altMatch[2] : '';
+            const widthValue = extractWidthFromAlt(alt);
+            if (!widthValue) return imgTag;
+
+            const styleMatch = imgTag.match(/\\bstyle=(['\"])(.*?)\\1/i);
+            const mergedStyle = mergeStyle(styleMatch ? styleMatch[2] : '', widthValue, alt);
+
+            if (styleMatch) {
+                return imgTag.replace(styleMatch[0], `style=\"${mergedStyle}\"`);
+            }
+            return imgTag.replace(/\\/>$/, ` style=\"${mergedStyle}\"/>`).replace(/>$/, ` style=\"${mergedStyle}\">`);
+        });
+"""
+    )
+    # Table
+    html_blocks.append(
+        r"""
+        const cr_regex = /(<td.*?)>(:?c\d+:?|:?r\d+:?|:?c\d+r\d+:?|:?r\d+c\d+:?)\s+(.*)<\/td>/g;
+        html = html.replace(cr_regex, (match, tdStart, spanInfo, content) => {
+            let colspan = 1;
+            let rowspan = 1;
+            let align = '';
+            const colMatch = spanInfo.match(/c(\d+)/);
+            if (colMatch) {
+                colspan = parseInt(colMatch[1], 10);
+            }
+            const rowMatch = spanInfo.match(/r(\d+)/);
+            if (rowMatch) {
+                rowspan = parseInt(rowMatch[1], 10);
+            }
+            if (spanInfo.startsWith(':') && spanInfo.endsWith(':')) {
+                align = 'center';
+            } else if (spanInfo.startsWith(':')) {
+                align = 'left';
+            } else if (spanInfo.endsWith(':')) {
+                align = 'right';
+            }
+            if (align) {
+                const styleMatch = tdStart.match(/style="(.*?)"/i);
+                if (styleMatch) {
+                    tdStart = tdStart.replace(styleMatch[0], `style=\"${styleMatch[2]} text-align: ${align} !important;\"`);
+                } else {
+                    tdStart += ` style=\"text-align: ${align} !important;\"`;
+                }
+            }
+            return `${tdStart} colspan="${colspan}" rowspan="${rowspan}">${content}</td>`;
+        });
+        const rm_regex = /<td[^>]*>\\<\/td>/g;
+        html = html.replace(rm_regex, '');
+        const esc_regex = /<td([^>]*)>\\\\<\/td>/g;
+        html = html.replace(esc_regex, '<td$1>\\</td>');
+        const th_regex = /(<th.*?)>(:?c\d+:?)\s+(.*)<\/th>/g;
+        html = html.replace(th_regex, (match, thStart, spanInfo, content) => {
+            let colspan = 1;
+            let align = '';
+            const colMatch = spanInfo.match(/c(\d+)/);
+            if (colMatch) {
+                colspan = parseInt(colMatch[1], 10);
+            }
+            if (spanInfo.startsWith(':') && spanInfo.endsWith(':')) {
+                align = 'center';
+            } else if (spanInfo.startsWith(':')) {
+                align = 'left';
+            } else if (spanInfo.endsWith(':')) {
+                align = 'right';
+            }
+            if (align) {
+                const styleMatch = thStart.match(/style="(.*?)"/i);
+                if (styleMatch) {
+                    thStart = thStart.replace(styleMatch[0], `style=\"${styleMatch[2]} text-align: ${align} !important;\"`);
+                } else {
+                    thStart += ` style=\"text-align: ${align} !important;\"`;
+                }
+            }
+            return `${thStart} colspan="${colspan}">${content}</th>`;
+        });
+        const rm_th_regex = /<th[^>]*>\\<\/th>/g;
+        html = html.replace(rm_th_regex, '');
+        const esc_th_regex = /<th([^>]*)>\\\\<\/th>/g;
+        html = html.replace(esc_th_regex, '<th$1>\\</th>');
+        """
+    )
+    return parser_blocks, html_blocks
+
+
+def write_output(
+    output_path: Path,
+    blocks: List[str],
+    parse_blocks: List[str] = [],
+    html_blocks: List[str] = [],
+) -> None:
+    output_path.mkdir(parents=True, exist_ok=True)
+    style_less = output_path / "style.less"
+    style_less.write_text(
         "\n".join(map(lambda x: x.strip("\n"), blocks)),
         encoding="utf-8",
     )
-    print(f"Generated style.less written to: {output_path.resolve()}")
+    print(f"Generated style.less written to: {style_less.resolve()}")
+    parser_blocks: List[str] = []
+    if parse_blocks:
+        parser_blocks.append(
+            "  onWillParseMarkdown: async function(markdown) {"
+        )
+        parser_blocks.extend(parse_blocks)
+        parser_blocks.append("    return markdown;")
+        parser_blocks.append("  },")
+    elif html_blocks:
+        parser_blocks.append(
+            "  onWillParseMarkdown: async function(markdown) { return markdown; },"
+        )
+    if html_blocks:
+        parser_blocks.append(
+            "  onDidParseMarkdown: async function(html) {"
+        )
+        parser_blocks.extend(html_blocks)
+        parser_blocks.append("    return html;")
+        parser_blocks.append("  },")
+    elif parse_blocks:
+        parser_blocks.append("  onDidParseMarkdown: async function(html) { return html; },")
+    if parser_blocks:
+        parser_js = output_path / "parser.js"
+        output = "\n" + "\n".join(map(lambda x: x.strip("\n"), parser_blocks)) + "\n"
+        parser_js.write_text(
+            f"({{{output}}})",
+            encoding="utf-8",
+        )
+        print(f"Generated parser.js written to: {parser_js.resolve()}")
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -571,11 +825,11 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
-        "--preview-css",
+        "--main-css",
         type=Path,
         required=True,
         help=(
-            "Preview theme CSS path. If relative, it is resolved under "
+            "Main theme CSS path. If relative, it is resolved under "
             "<extension-dir>/crossnote/styles/."
         ),
     )
@@ -607,10 +861,15 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
+        "--enable-parser",
+        action="store_true",
+        help="Generate features that require parser.js support."
+    )
+    parser.add_argument(
         "--output",
         type=Path,
         default=DEFAULT_OUTPUT,
-        help="Output style.less path.",
+        help="Output crossnote style directory (style.less and optionally parser.js will be written here).",
     )
     return parser
 
@@ -631,9 +890,9 @@ def main() -> None:
         explicit_extension_dir=args.extension_dir,
     )
 
-    preview_css_path = resolve_crossnote_style_path(
+    main_css_path = resolve_crossnote_style_path(
         extension_dir=extension_dir,
-        css_path=args.preview_css,
+        css_path=args.main_css,
     )
     codeblock_css_path = resolve_crossnote_style_path(
         extension_dir=extension_dir,
@@ -642,18 +901,25 @@ def main() -> None:
 
     print_margin = args.print_margin.strip()
     output_path = args.output.expanduser().resolve()
-    font_assets_dir = output_path.parent / "fonts"
+    font_assets_dir = output_path / "fonts"
 
     blocks = build_style_blocks(
         extension_dir=extension_dir,
         font_path=args.font,
-        preview_css_path=preview_css_path,
+        main_css_path=main_css_path,
         codeblock_css_path=codeblock_css_path,
         print_margin=print_margin,
         font_assets_dir=font_assets_dir,
         code_font_path=args.code_font,
+        enable_parser=args.enable_parser,
     )
-    write_output(output_path, blocks)
+    
+    if args.enable_parser:
+        parse_blocks, html_blocks = build_parser_blocks()
+    else:
+        parse_blocks, html_blocks = [], []
+
+    write_output(output_path, blocks, parse_blocks, html_blocks)
 
 
 if __name__ == "__main__":

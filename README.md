@@ -40,9 +40,18 @@ python mdcss.py \
     2. 使用 `--codeblock-css` 设置打印时的代码块样式
 4. 页边距
     - 使用 `--print-margin` 设置页边距
-5. PDF导入居中（当 `--enable-parser` 启用时生效）
+5. 小标题编号（当 `--enable-parser` 启用时生效）
+	1. 在标题开头的 `.` 会被替换成编号
+	2. 编号有多种样式
+		- `latin[Upper]`: `a)`, `b)`, `c)`
+		- `roman[Upper]`: `i)`, `ii)`, `iii)`，上限3999
+		- `chinese`: `一、`, `二、`, `三、`
+		- `number`: `1. `, `2. `, `3. `，且 `number` 在连续使用时可以生成 `1.1. `, `1.2. `, `1.3. `
+		- `none`: 不编号
+	 3. 设置 `--auto-count` 参数为 `,` 分割的六个编号样式，默认 `none, chinese, number, number, latin, roman`
+6. PDF导入居中（当 `--enable-parser` 启用时生效）
     -  `@import` 导入的PDF会居中显示
-6. 表格增强（当 `--enable-parser` 启用时生效）
+7. 表格增强（当 `--enable-parser` 启用时生效）
     1. 使用 `\` 删除单元格（包括标题），如需要输入`\`，请使用`\\\\`
     2. 使用 `c\d` 和 `d\d` 的前缀来表示合并单元格，使用 `:` 为单元格单独设置对齐
     3. 例子
@@ -53,3 +62,4 @@ python mdcss.py \
         | r2 文本3 | 文本4 | :r2c2: 文本5 | \ |
         | \ | 文本6 | \ | \ |
         ```
+8. 代码块不会另起一页，而是直接跟随上一页

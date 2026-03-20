@@ -1057,12 +1057,20 @@ def write_output(
     parse_blocks: List[str] = [],
     html_blocks: List[str] = [],
 ) -> None:
+    try:
+        import jsbeautifier
+    except ImportError:
+        jsbeautifier = None
+    try:
+        import cssbeautifier
+    except ImportError:
+        cssbeautifier = None
     output_path.mkdir(parents=True, exist_ok=True)
     style_less = output_path / "style.less"
-    style_less.write_text(
-        "\n".join(map(lambda x: x.strip("\n"), blocks)),
-        encoding="utf-8",
-    )
+    text = "\n".join(map(lambda x: x.strip("\n"), blocks))
+    if cssbeautifier:
+        text = cssbeautifier.beautify(text, {"indent_size": 2})
+    style_less.write_text(text, encoding="utf-8")
     print(f"Generated style.less written to: {style_less.resolve()}")
     parser_blocks: List[str] = []
     if parse_blocks:
@@ -1088,10 +1096,10 @@ def write_output(
     if parser_blocks:
         parser_js = output_path / "parser.js"
         output = "\n" + "\n".join(map(lambda x: x.strip("\n"), parser_blocks)) + "\n"
-        parser_js.write_text(
-            f"({{{output}}})",
-            encoding="utf-8",
-        )
+        output = f"({{{output}}})"
+        if jsbeautifier:
+            output = jsbeautifier.beautify(output, {"indent_size": 2})
+        parser_js.write_text(output, encoding="utf-8")
         print(f"Generated parser.js written to: {parser_js.resolve()}")
 
 

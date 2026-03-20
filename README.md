@@ -17,8 +17,9 @@
 ```bash
 python mdcss.py \
     --font ~/.local/share/fonts/FZ-Hei/方正兰亭黑.TTF \
-    --code-font /usr/share/fonts/truetype/ubuntu/UbuntuSansMono[wght].ttf \
-    --main-css preview_theme/github-light.css --codeblock-css prism_theme/github.css \
+    --code-font ~/.local/share/fonts/maple-NF-CN/MapleMonoNL-NF-CN-Regular.ttf \
+    --main-css preview_theme/github-light.css \
+    --codeblock-css prism_theme/github.css \
     --print-margin "5mm" \
     --enable-parser
 ```

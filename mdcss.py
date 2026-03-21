@@ -410,7 +410,7 @@ def resolve_font_family(font_path: Path, font_assets_dir: Path) -> Tuple[str, st
 
 def build_style_blocks(
     extension_dir: Path,
-    font_path: Path,
+    font_path: Optional[Path],
     main_css_path: Path,
     codeblock_css_path: Path,
     print_margin: str,
@@ -420,8 +420,11 @@ def build_style_blocks(
 ) -> List[str]:
     blocks: List[str] = []
 
-    font_family_name, content_font_faces = resolve_font_family(font_path, font_assets_dir)
-    blocks.append(content_font_faces)
+    font_family_name = None
+    content_font_faces = None
+    if font_path is not None:
+        font_family_name, content_font_faces = resolve_font_family(font_path, font_assets_dir)
+        blocks.append(content_font_faces)
 
     code_font_family = None
     if code_font_path is not None:
@@ -429,14 +432,15 @@ def build_style_blocks(
         if code_font_faces != content_font_faces:
             blocks.append(code_font_faces)
 
-    blocks.append(
-        """
+        blocks.append(
+                """
 .markdown-preview.markdown-preview {
 """
-    )
+        )
 
-    blocks.append(
-        f"""
+        if font_family_name:
+                blocks.append(
+                        f"""
   *:not(:is(
     pre, pre *, code, code *, kbd, kbd *, samp, samp *,
     .katex, .katex *, .MathJax, .MathJax *, mjx-container, mjx-container *
@@ -444,7 +448,7 @@ def build_style_blocks(
     font-family: '{font_family_name}', 'Source Sans Pro', 'Noto Sans CJK SC', 'Noto Sans SC', sans-serif !important;
   }}
 """
-    )
+                )
 
     blocks.append(
         """
@@ -1128,10 +1132,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--font",
         type=Path,
-        required=True,
+        default=None,
         help=(
-            "A font file path for the main document font. The script reads its family name "
-            "from metadata and scans sibling files in the same directory for variants."
+            "Optional font file path for the main document font. The script reads its family "
+            "name from metadata and scans sibling files in the same directory for variants. "
+            "If omitted, document body font-family will not be overridden."
         ),
     )
     parser.add_argument(

@@ -13,7 +13,7 @@
 ### 1.1 使用示例
 
 ```bash
-python mdcss.py \
+python mdcss/mdcss.py \
     --font ~/.local/share/fonts/HanSans/CN/SourceHanSansCN-Regular.otf \
     --code-font ~/.local/share/fonts/maple-NF-CN/MapleMonoNL-NF-CN-Regular.ttf \
     --main-css preview_theme/github-light.css \

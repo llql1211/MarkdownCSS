@@ -1,3 +1,14 @@
+function mergeInlineStyle(tagStart, styleText) {
+    const styleMatch = tagStart.match(/style="(.*?)"/i);
+    if (styleMatch) {
+        const existing = styleMatch[1].trim();
+        const merged = existing ? `${existing}; ${styleText}` : styleText;
+        return tagStart.replace(styleMatch[0], `style="${merged}"`);
+    }
+    return `${tagStart} style="${styleText}"`;
+}
+
+const wrapStyle = 'white-space: normal !important; overflow-wrap: anywhere; word-break: break-word;';
 const cr_regex = /(<td.*?)>(:?c\d+:?|:?r\d+:?|:?c\d+r\d+:?|:?r\d+c\d+:?)\s+(.*)<\/td>/g;
 html = html.replace(cr_regex, (match, tdStart, spanInfo, content) => {
     let colspan = 1;
@@ -18,14 +29,8 @@ html = html.replace(cr_regex, (match, tdStart, spanInfo, content) => {
     } else if (spanInfo.endsWith(':')) {
         align = 'right';
     }
-    if (align) {
-        const styleMatch = tdStart.match(/style="(.*?)"/i);
-        if (styleMatch) {
-            tdStart = tdStart.replace(styleMatch[0], `style=\"${styleMatch[2]} text-align: ${align} !important;\"`);
-        } else {
-            tdStart += ` style=\"text-align: ${align} !important;\"`;
-        }
-    }
+    const alignStyle = align ? `text-align: ${align} !important;` : '';
+    tdStart = mergeInlineStyle(tdStart, `${alignStyle} ${wrapStyle}`.trim());
     return `${tdStart} colspan="${colspan}" rowspan="${rowspan}">${content}</td>`;
 });
 const rm_regex = /<td[^>]*>\\<\/td>/g;
@@ -47,14 +52,8 @@ html = html.replace(th_regex, (match, thStart, spanInfo, content) => {
     } else if (spanInfo.endsWith(':')) {
         align = 'right';
     }
-    if (align) {
-        const styleMatch = thStart.match(/style="(.*?)"/i);
-        if (styleMatch) {
-            thStart = thStart.replace(styleMatch[0], `style=\"${styleMatch[2]} text-align: ${align} !important;\"`);
-        } else {
-            thStart += ` style=\"text-align: ${align} !important;\"`;
-        }
-    }
+    const alignStyle = align ? `text-align: ${align} !important;` : '';
+    thStart = mergeInlineStyle(thStart, `${alignStyle} ${wrapStyle}`.trim());
     return `${thStart} colspan="${colspan}">${content}</th>`;
 });
 const rm_th_regex = /<th[^>]*>\\<\/th>/g;

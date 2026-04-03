@@ -36,7 +36,7 @@ html = html.replace(
                 const margin = floatDir === 'left' ? '0 1em 1em 0' : '0 0 1em 1em';
                 return `<figure style="float: ${floatDir}; width: ${width}; margin: ${margin};" alt="${format}">
 ${imgTag}
-<figcaption style="text-align: center;">${finalCaption}</figcaption>
+<figcaption style="text-align: center; overflow-wrap: break-word;">${finalCaption}</figcaption>
 </figure>`;
             }
 
@@ -61,13 +61,13 @@ ${imgTag}
                 const margin = format.includes('R') ? '0 0 1em auto' : '0 auto 1em 0';
                 return `<figure style="width: ${width}; margin: ${margin};" alt="${format}">
 ${imgTag}
-<figcaption style="text-align: center;">${finalCaption}</figcaption>
+<figcaption style="text-align: center; overflow-wrap: break-word;">${finalCaption}</figcaption>
 </figure>`;
             }
 
-            return `<figure>
+            return `<figure style="width: 100%; margin: 0 auto; text-align: center;">
 ${imgTag}
-<figcaption style="text-align: center;">${finalCaption}</figcaption>
+<figcaption style="text-align: center; overflow-wrap: break-word;">${finalCaption}</figcaption>
 </figure>`;
         }
         match = imgTag.match(/style=(['"])(.*?)\1/i);
@@ -78,15 +78,15 @@ ${imgTag}
         style = style.replace(/width:\s*\d{1,4}(?:px|%)/g, `width: 100%`);
         imgTag = imgTag.replace(/style=(['"])(.*?)\1/i, `style="${style}"`);
         const finalCaption = caption.startsWith('.') ? `图@COUNT_PLACEHOLDER@:\t` + caption.slice(1) : caption;
-        return `<figure style="width: ${width}; margin: 0 auto; display: inline-block;" alt="${format}">
+        return `<figure style="width: ${width}; margin: 0; display: inline-block; vertical-align: top;" alt="${format}">
 ${imgTag}
-<figcaption style="text-align: center;">${finalCaption}</figcaption>
+<figcaption style="text-align: center; overflow-wrap: break-word;">${finalCaption}</figcaption>
 </figure>`;
     }
 )
 
 html = html.replace(
-    /((<figure.*?alt=["'].*?r.*?["'].*?>.*?<\/figure>\s*)+)/gs,
+    /((<figure\b[^>]*\balt=(?:"[^"]*r[^"]*"|'[^']*r[^']*')[^>]*>[\s\S]*?<\/figure>\s*)+)/g,
     (match) => {
         let firstFigure = match.split('</figure>')[0];
         let captionMatch = firstFigure.match(/<figcaption.*?>(.*?)<\/figcaption>/i);
@@ -99,9 +99,9 @@ html = html.replace(
             let modifiedFirstFigure = firstFigure.replace(captionMatch[0], modifiedCaptionTag);
             match = match.replace(firstFigure, modifiedFirstFigure);
             generalCaption = generalCaption.startsWith('.') ? `图@COUNT_PLACEHOLDER@:\t` + generalCaption.slice(1) : generalCaption;
-            generalCaption = `<figcaption style="text-align: center;">${generalCaption}</figcaption>`;
+            generalCaption = `<figcaption style="text-align: center; overflow-wrap: break-word;">${generalCaption}</figcaption>`;
         }
-        return `<figure style="text-align: center;">
+        return `<figure style="text-align: center; width: 100%; margin: 0 auto;">
 ${match}
 ${generalCaption || ''}
 </figure>`;

@@ -88,7 +88,18 @@
   }
   html body pre, html body pre[class*="language-"],
   .markdown-preview pre, .markdown-preview pre[class*="language-"] {
-    overflow: visible !important;
+    max-width: 100% !important;
+    overflow: hidden !important;
+  }
+  html body pre > code,
+  .markdown-preview pre > code,
+  html body pre[class*="language-"] > code,
+  .markdown-preview pre[class*="language-"] > code {
+    display: block !important;
+    max-width: 100% !important;
+    overflow: hidden !important;
+    text-overflow: clip !important;
+    white-space: pre !important;
   }
   .callout, details.callout {
     break-inside: avoid !important;

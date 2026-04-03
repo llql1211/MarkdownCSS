@@ -6,9 +6,11 @@ html = html.replace(
         match = alt.match(/\((.+)\)/i);
         let caption = match ? match[1] : '';
         let format = alt.replace(`(${caption})`, '').trim();
-        if (!caption) return imgTag;
         const isFloat = format.includes('Lf') || format.includes('Rf');
         const isSideAligned = !isFloat && (format.includes('L') || format.includes('R'));
+        const hasCaption = Boolean(caption);
+        const shouldWrapWithoutCaption = format.includes('r');
+        if (!hasCaption && !shouldWrapWithoutCaption) return imgTag;
         if (!format.includes("r")) {
             const finalCaption = caption.startsWith('.') ? `图@COUNT_PLACEHOLDER@:\t` + caption.slice(1) : caption;
             if (isFloat) {
@@ -77,10 +79,10 @@ ${imgTag}
         const width = match ? match[1] : '100%';
         style = style.replace(/width:\s*\d{1,4}(?:px|%)/g, `width: 100%`);
         imgTag = imgTag.replace(/style=(['"])(.*?)\1/i, `style="${style}"`);
-        const finalCaption = caption.startsWith('.') ? `图@COUNT_PLACEHOLDER@:\t` + caption.slice(1) : caption;
+        const finalCaption = caption ? (caption.startsWith('.') ? `图@COUNT_PLACEHOLDER@:\t` + caption.slice(1) : caption) : '';
         return `<figure style="width: ${width}; margin: 0; display: inline-block; vertical-align: top;" alt="${format}">
 ${imgTag}
-<figcaption style="text-align: center; overflow-wrap: break-word;">${finalCaption}</figcaption>
+    ${finalCaption ? `<figcaption style="text-align: center; overflow-wrap: break-word;">${finalCaption}</figcaption>` : ''}
 </figure>`;
     }
 )

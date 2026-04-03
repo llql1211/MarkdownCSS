@@ -447,6 +447,10 @@ def build_style_blocks(
 def build_parser_blocks(mappers: str) -> Tuple[List[str], List[str]]:
     parser_blocks: List[str] = []
     html_blocks: List[str] = []
+    # Fence extract (must run first in markdown preprocess)
+    parser_blocks.append(
+        load_template("js", "preparser_fence_extract.js")
+    )
     # PDF center
     parser_blocks.append(
         load_template("js", "preparser_pdf.js")
@@ -480,6 +484,10 @@ def build_parser_blocks(mappers: str) -> Tuple[List[str], List[str]]:
     # Multicolunn
     parser_blocks.append(
         load_template("js", "preparser_column.js")
+    )
+    # Fence restore (must run last in markdown preprocess)
+    parser_blocks.append(
+        load_template("js", "preparser_fence_restore.js")
     )
     return parser_blocks, html_blocks
 

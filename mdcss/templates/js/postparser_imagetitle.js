@@ -108,6 +108,13 @@ ${generalCaption || ''}
     }
 )
 
+// In flex-column containers, float on sibling blocks will not wrap text.
+// Merge "float figure + next paragraph" into one paragraph so wrapping still works.
+html = html.replace(
+    /(?:<p>\s*<\/p>\s*)?(<figure\b[^>]*\balt=(['"])[^'"]*(?:Lf|Rf)[^'"]*\2[^>]*>[\s\S]*?<\/figure>)\s*(?:<p>\s*<\/p>\s*)?<p>([\s\S]*?)<\/p>/g,
+    (match, figureHtml, _q, nextParagraphContent) => `<p>${figureHtml}${nextParagraphContent}</p>`
+)
+
 let cnt = 0;
 html = html.replace(/@COUNT_PLACEHOLDER@/g, (match) => {
     cnt += 1;

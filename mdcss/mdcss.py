@@ -360,6 +360,7 @@ def build_style_blocks(
     font_assets_dir: Path,
     code_font_path: Optional[Path] = None,
     enable_parser: bool = False,
+    enable_table_horizontal_scroll: bool = False,
 ) -> List[str]:
     blocks: List[str] = []
 
@@ -403,6 +404,22 @@ def build_style_blocks(
     blocks.append(
         load_template("css", "style.css")
     )
+
+    if not enable_table_horizontal_scroll:
+        blocks.append("""
+  table {
+    display: table !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    table-layout: fixed !important;
+    overflow-x: visible !important;
+  }
+  th, td {
+    white-space: normal !important;
+    overflow-wrap: anywhere !important;
+    word-break: break-word !important;
+  }
+""")
 
     if code_font_family:
         blocks.append(f"""
@@ -459,6 +476,10 @@ def build_parser_blocks(mappers: str) -> Tuple[List[str], List[str]]:
     parser_blocks.append(
         load_template("js", "preparser_titleprefix.js")
         .replace("@MAPPER_PLACEHOLDER@", ", ".join(levels))
+    )
+    # Multicolunn
+    parser_blocks.append(
+        load_template("js", "preparser_column.js")
     )
     return parser_blocks, html_blocks
 
@@ -589,6 +610,14 @@ def build_parser() -> argparse.ArgumentParser:
         help="Generate features that require parser.js support."
     )
     parser.add_argument(
+        "--enable-table-horizontal-scroll",
+        action="store_true",
+        help=(
+            "Allow horizontal scrolling for wide tables (keep current behavior). "
+            "If not set, tables will avoid horizontal scroll and force content wrapping."
+        ),
+    )
+    parser.add_argument(
         "--auto-count",
         type=str,
         default="none, chinese, number, number, latin, roman",
@@ -643,6 +672,7 @@ def main() -> None:
         font_assets_dir=font_assets_dir,
         code_font_path=args.code_font,
         enable_parser=args.enable_parser,
+        enable_table_horizontal_scroll=args.enable_table_horizontal_scroll,
     )
     
     if args.enable_parser:

@@ -1,4 +1,3 @@
-import argparse
 import shutil
 import re
 import unicodedata
@@ -8,10 +7,47 @@ from typing import List, Optional, Tuple, Any, Literal
 import cssutils
 from fontTools.ttLib import TTFont
 
+
+# ===== 用户配置区域 =====
+
+# VS Code 扩展根目录，默认为用户目录下的 .vscode/extensions
+EXTENSIONS_ROOT = Path.home() / ".vscode" / "extensions"
+# 扩展目录匹配模式，用于自动查找 Markdown Preview Enhanced 扩展（当 EXTENSION_DIR 为 None 时使用）
+EXTENSION_PATTERN = "shd101wyy.markdown-preview-enhanced-*"
+# 显式指定扩展目录，若为 None 则根据 EXTENSIONS_ROOT 和 EXTENSION_PATTERN 自动匹配
+EXTENSION_DIR = None
+
+# 正文字体路径，例如 Path("~/myfont.ttf")，设为 None 则不覆盖默认字体
+FONT = Path("D:/Coding/.resource/font/Segoe_UI/segoeui.ttf")
+# 代码块字体路径，设为 None 则不覆盖默认代码字体
+CODE_FONT = None
+
+# 主主题 CSS 文件名（相对于扩展目录下的 crossnote/styles/ 或绝对路径），必须提供有效值
+MAIN_CSS = Path("./preview_theme/github-light.css")
+# 代码块主题 CSS 文件名，必须提供有效值
+CODEBLOCK_CSS = Path("./prism_theme/github.css")
+
+# 打印边距，支持 CSS 长度单位和 1-4 个值，例如 "5mm"、"2cm 1cm" 等
+PRINT_MARGIN = "5mm"
+# 是否启用 parser.js 功能（如标题自动编号、图片尺寸控制、多列布局等）
+ENABLE_PARSER = True
+# 是否允许表格水平滚动，设为 False 则强制表格内换行（避免横向滚动条）
+ENABLE_TABLE_HORIZONTAL_SCROLL = False
+# 标题自动编号格式，按标题级别 1-6 顺序，用逗号分隔，支持：roman, romanUpper, latin, latinUpper, chinese, number, none
+AUTO_COUNT = "none, chinese, number, number, latin, roman"
+# 输出目录，生成的 style.less 和 parser.js 将写入此目录
+# OUTPUT = Path.home() / ".local" / "state" / "crossnote"
+OUTPUT = Path("./output_style")
+
+# ========================================
+
+
 HOME = Path.home()
 DEFAULT_EXTENSIONS_ROOT = HOME / ".vscode" / "extensions"
 DEFAULT_OUTPUT = HOME / ".local" / "state" / "crossnote"
 TEMPLATE_DIR = Path(__file__).parent / "templates"
+
+image_size_range = range(5, 101, 5)
 
 cssutils.log.setLevel("CRITICAL")
 
@@ -391,7 +427,7 @@ def build_style_blocks(
 """)
 
     if not enable_parser:
-        for i in range(1, 101):
+        for i in image_size_range:
             blocks.append(f"""
   img[alt*="{i}"] {{
     width: {i}% !important;
@@ -544,104 +580,6 @@ def write_output(
         print(f"Generated parser.js written to: {parser_js.resolve()}")
 
 
-def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(
-        description="Generate Crossnote style.less with more features."
-    )
-    parser.add_argument(
-        "--extensions-root",
-        type=Path,
-        default=DEFAULT_EXTENSIONS_ROOT,
-        help="Base directory containing VS Code extensions.",
-    )
-    parser.add_argument(
-        "--extension-pattern",
-        type=str,
-        default="shd101wyy.markdown-preview-enhanced-*",
-        help="Glob pattern for the markdown-preview-enhanced extension directory.",
-    )
-    parser.add_argument(
-        "--extension-dir",
-        type=Path,
-        default=None,
-        help="Explicit extension directory (overrides pattern matching).",
-    )
-    parser.add_argument(
-        "--font",
-        type=Path,
-        default=None,
-        help=(
-            "Optional font file path for the main document font. The script reads its family "
-            "name from metadata and scans sibling files in the same directory for variants. "
-            "If omitted, document body font-family will not be overridden."
-        ),
-    )
-    parser.add_argument(
-        "--main-css",
-        type=Path,
-        required=True,
-        help=(
-            "Main theme CSS path. If relative, it is resolved under "
-            "<extension-dir>/crossnote/styles/."
-        ),
-    )
-    parser.add_argument(
-        "--codeblock-css",
-        type=Path,
-        required=True,
-        help=(
-            "Code block theme CSS path. If relative, it is resolved under "
-            "<extension-dir>/crossnote/styles/."
-        ),
-    )
-    parser.add_argument(
-        "--code-font",
-        type=Path,
-        default=None,
-        help=(
-            "Optional font file path for code blocks. The script reads its family name "
-            "from metadata and scans sibling files in the same directory for variants."
-        ),
-    )
-    parser.add_argument(
-        "--print-margin",
-        type=str,
-        default="5mm",
-        help=(
-            "Print content margin value used as CSS padding in @media print body. "
-            "Supports CSS length units and 1-4 value syntax, e.g. '2cm', '20mm', '1in 0.8in'."
-        ),
-    )
-    parser.add_argument(
-        "--enable-parser",
-        action="store_true",
-        help="Generate features that require parser.js support."
-    )
-    parser.add_argument(
-        "--enable-table-horizontal-scroll",
-        action="store_true",
-        help=(
-            "Allow horizontal scrolling for wide tables (keep current behavior). "
-            "If not set, tables will avoid horizontal scroll and force content wrapping."
-        ),
-    )
-    parser.add_argument(
-        "--auto-count",
-        type=str,
-        default="none, chinese, number, number, latin, roman",
-        help=(
-            "Comma-separated list of title auto-count formatter for heading levels 1-6. "
-            "Supported formatter: roman, romanUpper, latin, latinUpper, chinese, number, none."
-        )
-    )
-    parser.add_argument(
-        "--output",
-        type=Path,
-        default=DEFAULT_OUTPUT,
-        help="Output crossnote style directory (style.less and optionally parser.js will be written here).",
-    )
-    return parser
-
 
 def resolve_crossnote_style_path(extension_dir: Path, css_path: Path) -> Path:
     if css_path.is_absolute():
@@ -649,42 +587,42 @@ def resolve_crossnote_style_path(extension_dir: Path, css_path: Path) -> Path:
     return extension_dir / "crossnote" / "styles" / css_path
 
 
-def main() -> None:
-    parser = build_parser()
-    args = parser.parse_args()
-
+def main():
+    # 直接使用配置变量，不再解析命令行参数
     extension_dir = resolve_extension_dir(
-        extensions_root=args.extensions_root,
-        extension_pattern=args.extension_pattern,
-        explicit_extension_dir=args.extension_dir,
+        extensions_root=EXTENSIONS_ROOT,
+        extension_pattern=EXTENSION_PATTERN,
+        explicit_extension_dir=EXTENSION_DIR,
     )
-
     main_css_path = resolve_crossnote_style_path(
         extension_dir=extension_dir,
-        css_path=args.main_css,
+        css_path=MAIN_CSS,
     )
     codeblock_css_path = resolve_crossnote_style_path(
         extension_dir=extension_dir,
-        css_path=args.codeblock_css,
+        css_path=CODEBLOCK_CSS,
     )
-
-    print_margin = args.print_margin.strip()
-    output_path = args.output.expanduser().resolve()
+    # 检查必需参数
+    if MAIN_CSS is None or CODEBLOCK_CSS is None:
+        raise ValueError("MAIN_CSS and CODEBLOCK_CSS must be provided in configuration.")
+    
+    print_margin = PRINT_MARGIN.strip()
+    output_path = OUTPUT.expanduser().resolve()
     font_assets_dir = output_path / "fonts"
 
     blocks = build_style_blocks(
-        font_path=args.font,
+        font_path=FONT,
         main_css_path=main_css_path,
         codeblock_css_path=codeblock_css_path,
         print_margin=print_margin,
         font_assets_dir=font_assets_dir,
-        code_font_path=args.code_font,
-        enable_parser=args.enable_parser,
-        enable_table_horizontal_scroll=args.enable_table_horizontal_scroll,
+        code_font_path=CODE_FONT,
+        enable_parser=ENABLE_PARSER,
+        enable_table_horizontal_scroll=ENABLE_TABLE_HORIZONTAL_SCROLL,
     )
-    
-    if args.enable_parser:
-        parse_blocks, html_blocks = build_parser_blocks(args.auto_count)
+
+    if ENABLE_PARSER:
+        parse_blocks, html_blocks = build_parser_blocks(AUTO_COUNT)
     else:
         parse_blocks, html_blocks = [], []
 

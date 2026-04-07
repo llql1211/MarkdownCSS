@@ -7,49 +7,69 @@ from typing import List, Optional, Tuple, Any, Literal
 import cssutils
 from fontTools.ttLib import TTFont
 
+# You may also install jsbeautifier and cssbeautifier for better output formatting,
+# but they are optional dependencies.
 
-# ===== 用户配置区域 =====
 
-# VS Code 扩展根目录，默认为用户目录下的 .vscode/extensions
-EXTENSIONS_ROOT = Path.home() / ".vscode" / "extensions"
-# 扩展目录匹配模式，用于自动查找 Markdown Preview Enhanced 扩展（当 EXTENSION_DIR 为 None 时使用）
-EXTENSION_PATTERN = "shd101wyy.markdown-preview-enhanced-*"
+# ======== 用户配置区域 ========
+
 # 显式指定扩展目录，若为 None 则根据 EXTENSIONS_ROOT 和 EXTENSION_PATTERN 自动匹配
 EXTENSION_DIR = None
+# VS Code 扩展根目录，默认为用户目录下的 .vscode/extensions
+EXTENSIONS_ROOT = Path.home() / ".vscode" / "extensions"
+# 扩展目录匹配模式，自动查找 Markdown Preview Enhanced 扩展（当 EXTENSION_DIR 为 None 时使用）
+EXTENSION_PATTERN = "shd101wyy.markdown-preview-enhanced-*"
 
-# 正文字体路径，例如 Path("~/myfont.ttf")，设为 None 则不覆盖默认字体
+# 正文字体路径，若为 None 则不覆盖默认字体（只需输入一个文件，程序会自动解析同族字体）
 FONT = Path("D:/Coding/.resource/font/Segoe_UI/segoeui.ttf")
-# 代码块字体路径，设为 None 则不覆盖默认代码字体
+# 代码块字体路径，若为 None 则不覆盖默认代码字体
 CODE_FONT = None
 
-# 主主题 CSS 文件名（相对于扩展目录下的 crossnote/styles/ 或绝对路径），必须提供有效值
+# 主主题 CSS 文件名（相对扩展目录 crossnote/styles/ 的相对路径或绝对路径），必须提供有效值
 MAIN_CSS = Path("./preview_theme/github-light.css")
-# 代码块主题 CSS 文件名，必须提供有效值
+# 代码块主题 CSS 文件名（相对扩展目录 crossnote/styles/ 的相对路径或绝对路径），必须提供有效值
 CODEBLOCK_CSS = Path("./prism_theme/github.css")
 
-# 打印边距，支持 CSS 长度单位和 1-4 个值，例如 "5mm"、"2cm 1cm" 等
-PRINT_MARGIN = "5mm"
-# 是否启用 parser.js 功能（如标题自动编号、图片尺寸控制、多列布局等）
-ENABLE_PARSER = True
-# 是否允许表格水平滚动，设为 False 则强制表格内换行（避免横向滚动条）
-ENABLE_TABLE_HORIZONTAL_SCROLL = False
-# 标题自动编号格式，按标题级别 1-6 顺序，用逗号分隔，支持：roman, romanUpper, latin, latinUpper, chinese, number, none
-AUTO_COUNT = "none, chinese, number, number, latin, roman"
-# 输出目录，生成的 style.less 和 parser.js 将写入此目录
-# OUTPUT = Path.home() / ".local" / "state" / "crossnote"
-OUTPUT = Path("./output_style")
+# 打印边距，支持 CSS 长度单位以及 1-4 个值，例如 "5mm"、"2cm 1cm" 等
+# 1 个值 → 全部，2 个值 → 上下、左右，3 个值 → 上、左右、下，4 个值：上、右、下、左
+PRINT_MARGIN = "2.54cm, 1.91cm, 2.54cm, 1.91cm"
 
-# ========================================
-
-
-HOME = Path.home()
-DEFAULT_EXTENSIONS_ROOT = HOME / ".vscode" / "extensions"
-DEFAULT_OUTPUT = HOME / ".local" / "state" / "crossnote"
-TEMPLATE_DIR = Path(__file__).parent / "templates"
-
+# 图片尺寸预设范围（未启动 ENABLE_PARSER 时生效）
 image_size_range = range(5, 101, 5)
 
+# 是否在二级标题下添加横线
+ENABLE_H2_UNDERLINE = True
+
+# 模板文件位置
+TEMPLATE_DIR = Path(__file__).parent / "templates"
+
+# 输出目录，生成的 style.less 和 parser.js 将写入此目录
+OUTPUT = Path.home() / ".crossnote"  # MPE 插件 style.less 的文件目录
+# OUTPUT = Path("./output_style")
+
+# ==== 自定义功能 ====
+
+# 是否启用 parser.js 功能（如标题自动编号、图片尺寸控制、多列布局等）
+ENABLE_PARSER = True
+
+# 标题自动编号格式，按标题级别 1-6 顺序，用逗号分隔，支持：roman, romanUpper, latin, latinUpper, chinese, number, none
+AUTO_COUNT = "none, number, number, number, latin, roman"
+# 是否允许表格水平滚动，若为 False 则强制表格内换行（避免横向滚动条）
+ENABLE_TABLE_HORIZONTAL_SCROLL = False
+
+# ======== 配置区域结束 ========
+
+
+FONT_FORMATS = {
+    ".ttf": "truetype",
+    ".otf": "opentype",
+    ".woff": "woff",
+    ".woff2": "woff2",
+}
+
+
 cssutils.log.setLevel("CRITICAL")
+
 
 def load_template(dir_: Literal["css", "js"], name: str, **kwargs: dict[str, Any]) -> str:
     file = TEMPLATE_DIR / dir_ / name
@@ -217,14 +237,6 @@ def generate_print_style(
         new_rules="\n".join(new_rules),
         print_margin=print_margin,
     )
-
-
-FONT_FORMATS = {
-    ".ttf": "truetype",
-    ".otf": "opentype",
-    ".woff": "woff",
-    ".woff2": "woff2",
-}
 
 
 def _get_name_record(font: TTFont, name_ids: Tuple[int, ...]) -> Optional[str]:
@@ -441,6 +453,20 @@ def build_style_blocks(
         load_template("css", "style.css")
     )
 
+    if ENABLE_H2_UNDERLINE:
+        blocks.append(
+            """
+  h1::after,
+  h2::after {
+    content: "";
+    display: block;
+    width: 100%;
+    height: 0.5px;
+    background-color: #bbbbbb;
+    margin-top: 0.2em;
+  }
+""")
+
     if not enable_table_horizontal_scroll:
         blocks.append("""
   table {
@@ -580,7 +606,6 @@ def write_output(
         print(f"Generated parser.js written to: {parser_js.resolve()}")
 
 
-
 def resolve_crossnote_style_path(extension_dir: Path, css_path: Path) -> Path:
     if css_path.is_absolute():
         return css_path
@@ -588,7 +613,6 @@ def resolve_crossnote_style_path(extension_dir: Path, css_path: Path) -> Path:
 
 
 def main():
-    # 直接使用配置变量，不再解析命令行参数
     extension_dir = resolve_extension_dir(
         extensions_root=EXTENSIONS_ROOT,
         extension_pattern=EXTENSION_PATTERN,

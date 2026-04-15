@@ -1,6 +1,4 @@
-
 const columnRegex = /(^-?\|\|\|-?:?\d*(?:%|px)?:?$)/m;
-
 function parseCulumnSpec(spec) {
     let type = "separator";
     let width = "";
@@ -76,7 +74,6 @@ function normalizeColumnWidths(entries) {
 
     return entries;
 }
-
 function mergeColumnSpec(markdown) {
     let parts = markdown.split(columnRegex);
     let specIndex = {};

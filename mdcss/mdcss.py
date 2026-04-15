@@ -15,7 +15,7 @@ TEMPLATE_DIR = Path(__file__).parent / "templates"
 
 cssutils.log.setLevel("CRITICAL")
 
-def load_template(dir_: Literal["css", "js"], name: str, **kwargs: dict[str, Any]) -> str:
+def load_template(dir_: Literal["css", "parser"], name: str, **kwargs: dict[str, Any]) -> str:
     file = TEMPLATE_DIR / dir_ / name
     if not file.exists():
         raise FileNotFoundError(f"Template not found: {file}")
@@ -449,23 +449,23 @@ def build_parser_blocks(mappers: str) -> Tuple[List[str], List[str]]:
     html_blocks: List[str] = []
     # Fence extract (must run first in markdown preprocess)
     parser_blocks.append(
-        load_template("js", "preparser_fence_extract.js")
+        load_template("parser", "preparser_fence_extract.js")
     )
     # PDF center
     parser_blocks.append(
-        load_template("js", "preparser_pdf.js")
+        load_template("parser", "preparser_pdf.js")
     )
     # Image alt size
     html_blocks.append(
-        load_template("js", "postparser_image.js")
+        load_template("parser", "postparser_image.js")
     )
     # Table
     html_blocks.append(
-        load_template("js", "postparser_table.js")
+        load_template("parser", "postparser_table.js")
     )
     # Image title
     html_blocks.append(
-        load_template("js", "postparser_imagetitle.js")
+        load_template("parser", "postparser_imagetitle.js")
     )
     # title prefix
     levels = []
@@ -478,16 +478,16 @@ def build_parser_blocks(mappers: str) -> Tuple[List[str], List[str]]:
     if len(levels) > 6:
         raise ValueError(f"Too many mappers: {len(levels)}, at most 6 levels are supported.")
     parser_blocks.append(
-        load_template("js", "preparser_titleprefix.js")
+        load_template("parser", "preparser_titleprefix.js")
         .replace("@MAPPER_PLACEHOLDER@", ", ".join(levels))
     )
     # Multicolunn
     parser_blocks.append(
-        load_template("js", "preparser_column.js")
+        load_template("parser", "preparser_column.js")
     )
     # Fence restore (must run last in markdown preprocess)
     parser_blocks.append(
-        load_template("js", "preparser_fence_restore.js")
+        load_template("parser", "preparser_fence_restore.js")
     )
     return parser_blocks, html_blocks
 

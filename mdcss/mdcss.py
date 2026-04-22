@@ -1,3 +1,13 @@
+# Modification in mdcss.py
+# 1. margin in Line 182:
+# @media print {
+#   @page {
+#     margin: 2cm 2cm 2cm 2cm !important;
+#   }
+# 2. font-size in Line 214:
+#   html body {
+#     font-size: 18px !important;
+
 import shutil
 import re
 import unicodedata

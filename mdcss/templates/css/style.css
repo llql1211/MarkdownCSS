@@ -39,3 +39,10 @@
   h1, h2, h3, h4, h5, h6, hr {
     clear: both;
   }
+  /* Indent */
+  .has-indent p {
+    text-indent: 2em;
+  }
+  .has-indent li > p {
+    text-indent: 0;
+  }

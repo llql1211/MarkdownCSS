@@ -43,3 +43,6 @@
   .has-indent p {
     text-indent: 2em;
   }
+  .has-indent li > p {
+    text-indent: 0;
+  }

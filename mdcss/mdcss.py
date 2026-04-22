@@ -447,6 +447,10 @@ def build_style_blocks(
 def build_parser_blocks(mappers: str) -> Tuple[List[str], List[str]]:
     parser_blocks: List[str] = []
     html_blocks: List[str] = []
+    # Paragraph indent
+    parser_blocks.append(
+        load_template("parser", "preparser_indent.js")
+    )
     # Fence extract (must run first in markdown preprocess)
     parser_blocks.append(
         load_template("parser", "preparser_fence_extract.js")
